@@ -93,7 +93,7 @@
    and they use different config options. These options can only be enabled
    on x86_64 with newer 2.6 kernels (2.6.23 for intel, 2.6.26 for amd). 
 */
-#if defined(CONFIG_AMD_IOMMU) || defined(CONFIG_DMAR)
+#if defined(CONFIG_AMD_IOMMU) || defined(CONFIG_INTEL_IOMMU) || defined(CONFIG_DMAR)
     #define FIREGL_DMA_REMAPPING
 #endif
 
@@ -269,7 +269,11 @@ module_param(firegl, charp, 0);
 #endif
 
 #ifdef MODULE_LICENSE
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,19,0)
+MODULE_LICENSE("GPL\0Proprietary. (C) 2002 - ATI Technologies, Starnberg, GERMANY");
+#else
 MODULE_LICENSE("Proprietary. (C) 2002 - ATI Technologies, Starnberg, GERMANY");
+#endif
 #endif
 #ifdef MODULE_DEVICE_TABLE
 MODULE_DEVICE_TABLE(pci, fglrx_pci_table);
@@ -4496,8 +4500,13 @@ static void kcl_mem_pat_setup (void *info)
 
     if (cpu_has_pge)
     {
-        cr4 = read_cr4();
-        write_cr4(cr4 & ~X86_CR4_PGE);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,0,0)
+	cr4 = read_cr4();
+	write_cr4(cr4 & ~X86_CR4_PGE);
+#else
+	cr4 = __read_cr4();
+	__write_cr4(cr4 & ~X86_CR4_PGE);
+#endif
     }
      __flush_tlb();
 
@@ -4510,7 +4519,11 @@ static void kcl_mem_pat_setup (void *info)
     write_cr0(cr0 & 0xbfffffff);
     if (cpu_has_pge)
     {
-        write_cr4(cr4);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,0,0)
+	write_cr4(cr4);
+#else
+	__write_cr4(cr4);
+#endif
     }
     local_irq_restore(flags);
 
@@ -4537,8 +4550,13 @@ static void kcl_mem_pat_restore (void *info)
 
     if (cpu_has_pge)
     {
-        cr4 = read_cr4();
-        write_cr4(cr4 & ~X86_CR4_PGE);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,0,0)
+	cr4 = read_cr4();
+	write_cr4(cr4 & ~X86_CR4_PGE);
+#else
+	cr4 = __read_cr4();
+	__write_cr4(cr4 & ~X86_CR4_PGE);
+#endif
     }
      __flush_tlb();
   
@@ -4550,7 +4568,11 @@ static void kcl_mem_pat_restore (void *info)
     write_cr0(cr0 & 0xbfffffff);
     if (cpu_has_pge)
     {
-        write_cr4(cr4);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,0,0)
+	write_cr4(cr4);
+#else
+	__write_cr4(cr4);
+#endif
     }
     local_irq_restore(flags);
 
@@ -6420,7 +6442,7 @@ void ATI_API_CALL KCL_create_uuid(void *buf)
     generate_random_uuid((char *)buf);
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,15,0) && LINUX_VERSION_CODE < KERNEL_VERSION(4,0,0)
 static int KCL_fpu_save_init(struct task_struct *tsk)
 {
    struct fpu *fpu = &tsk->thread.fpu;
